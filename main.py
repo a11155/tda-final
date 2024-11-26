@@ -3,6 +3,9 @@ from ui.main_view import render_data_input_section
 from ui.visualization import TimeSeriesVisualization, plot_time_series
 from analysis.time_series import TimeSeriesAnalysis
 import numpy as np
+
+
+
 def main():
     st.set_page_config(
         page_title="Time Series TDA Analysis",
@@ -17,18 +20,22 @@ def main():
         st.session_state.time_series_data = None
     if 'processed_data' not in st.session_state:
         st.session_state.processed_data = None
-    
-    # Get input data
+    if 'persistence_data' not in st.session_state:
+        st.session_state.persistence_data = None
 
+    # Get input data
     if st.button("Generate Data"):
         st.session_state.time_series_data = None
         st.session_state.processed_data = None
+        st.session_state.persistence_data = None
         st.success("Data generated successfully!")
+
     if st.session_state.time_series_data is None:
         time_series_data, error = render_data_input_section()
     else:
         _, error = render_data_input_section()
         time_series_data = st.session_state.time_series_data
+
     if error:
         st.error(error)
     
@@ -131,7 +138,6 @@ def main():
                     st.metric("Std Dev", f"{stats['std']:.2f}")
                 with col4:
                     st.metric("Range", f"{stats['range']:.2f}")
-                
 
                 st.subheader("Takens Embedding Visualization")
                 fig = TimeSeriesVisualization.plot_takens_embedding(
@@ -141,13 +147,73 @@ def main():
                 )
                 st.plotly_chart(fig, use_container_width=True)
 
-                # TDA Analysis placeholder
+                # Persistence Analysis Section
                 st.subheader("TDA Analysis")
-                st.info("TDA analysis will be added in the next version!")
+                
+                max_homology_dim = st.slider(
+                    "Maximum Homology Dimension",
+                    min_value=0,
+                    max_value=2,
+                    value=1,
+                    key="max_homology_dim"
+                )
+                
+                if st.button("Compute Persistence"):
+                    with st.spinner("Computing persistence diagrams..."):
+                        analyzer = TimeSeriesAnalysis(time_series_data)
+                        # Create analyzer and compute persistence
+                        persistence_results = analyzer.compute_persistence(
+                            st.session_state.processed_data['embedding'], 
+                            max_dim=max_homology_dim
+                        )
+                        
+                        st.session_state.persistence_data = persistence_results
+                        st.success("Persistence computation complete")
+                
+                # Display persistence results if available
+                if st.session_state.persistence_data is not None:
+                    
+
+                    vis_type = st.selectbox(
+                        "Select Visualization",
+                        ["Persistence Diagram", "Persistence Landscape"]
+                    )
+                    
+                    if vis_type == "Persistence Diagram":
+                        fig = TimeSeriesVisualization.plot_persistence_diagrams(
+                            st.session_state.persistence_data['diagrams']
+                        )
+                        st.pyplot(fig)
+                        
+                    elif vis_type == "Persistence Landscape":
+                        n_layers = st.slider(
+                            "Number of Landscape Layers", 
+                            min_value=1,
+                            max_value=10,
+                            value=5
+                        )
+                        fig = TimeSeriesVisualization.plot_persistence_landscape(
+                            st.session_state.persistence_data['diagrams'],
+                            n_layers=n_layers
+                        )
+                        st.pyplot(fig)
+
+
+                    
+                    # Statistics in a separate section
+                    with st.expander("Persistence Statistics"):
+                        for stat in st.session_state.persistence_data['stats']:
+                            st.write(f"### Dimension {stat.dimension}")
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Number of Features", stat.num_features)
+                            with col2:
+                                st.metric("Total Persistence", f"{stat.total_persistence:.3f}")
+                            with col3:
+                                st.metric("Max Persistence", f"{stat.max_persistence:.3f}")
                 
         except Exception as e:
             raise e
-        #     st.error(f"Error processing time series: {str(e)}")
 
 if __name__ == "__main__":
     main()

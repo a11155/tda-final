@@ -5,12 +5,31 @@ from sklearn.decomposition import PCA
 import numpy as np
 from typing import List, Optional, Tuple
 from dataclasses import dataclass
+import numpy as np
+from ripser import ripser
+from persim import plot_diagrams
+from typing import Dict, List, Tuple
+from dataclasses import dataclass
 @dataclass
 class TimeSeriesWindow:
     """Represents a window of time series data."""
     start_idx: int
     end_idx: int
     values: np.ndarray
+
+
+
+
+@dataclass
+class PersistenceStats:
+    """Statistics for persistence diagrams."""
+    total_persistence: float
+    max_persistence: float
+    avg_persistence: float
+    num_features: int
+    birth_range: Tuple[float, float]
+    death_range: Tuple[float, float]
+    dimension: int
 
 class TimeSeriesAnalysis:
     """Core class for time series analysis and TDA preparation."""
@@ -33,6 +52,51 @@ class TimeSeriesAnalysis:
         self.sampling_rate = sampling_rate
         self.length = len(time_series)
         
+
+    def compute_persistence(self, embedding, max_dim: int = 1) -> Dict:
+        """
+        Compute persistence diagrams from Takens embedding.
+        
+        Args:
+            max_dim: Maximum homology dimension to compute
+            
+        Returns:
+            Dictionary containing persistence data and statistics
+        """
+            
+        # Compute persistence diagrams
+        diagrams = ripser(embedding, maxdim=max_dim)['dgms']
+        
+        # Compute statistics for each dimension
+        stats = []
+        for dim, diagram in enumerate(diagrams):
+            if len(diagram) > 0:
+                persistence = diagram[:, 1] - diagram[:, 0]
+                stats.append(PersistenceStats(
+                    total_persistence=float(np.sum(persistence)),
+                    max_persistence=float(np.max(persistence)),
+                    avg_persistence=float(np.mean(persistence)),
+                    num_features=len(persistence),
+                    birth_range=(float(np.min(diagram[:, 0])), float(np.max(diagram[:, 0]))),
+                    death_range=(float(np.min(diagram[:, 1])), float(np.max(diagram[:, 1]))),
+                    dimension=dim
+                ))
+            else:
+                stats.append(PersistenceStats(
+                    total_persistence=0.0,
+                    max_persistence=0.0,
+                    avg_persistence=0.0,
+                    num_features=0,
+                    birth_range=(0.0, 0.0),
+                    death_range=(0.0, 0.0),
+                    dimension=dim
+                ))
+        
+        return {
+            'diagrams': diagrams,
+            'stats': stats
+        }
+    
     def create_sliding_windows(self, 
                              window_size: int, 
                              stride: Optional[int] = None) -> List[TimeSeriesWindow]:
@@ -104,7 +168,8 @@ class TimeSeriesAnalysis:
             start_idx = i * time_delay
             end_idx = start_idx + n_points
             embedding[:, i] = self.time_series[start_idx:end_idx]
-            
+        
+        self.embedding = embedding
         return embedding
     
     def project_embedding(self, 
