@@ -2,6 +2,7 @@ import streamlit as st
 from ui.main_view import render_data_input_section
 from ui.visualization import TimeSeriesVisualization, plot_time_series
 from analysis.time_series import TimeSeriesAnalysis
+from analysis.critical_points import TopologicalCriticalPoints
 import numpy as np
 
 
@@ -93,6 +94,46 @@ def main():
                 horizontal=True,
                 key="projection_dim"
             )
+
+            st.subheader("Critical Point Detection")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                detection_window = st.slider(
+                    "Detection Window Size",
+                    min_value=10,
+                    max_value=len(time_series_data)//4,
+                    value=min(50, len(time_series_data)//8)
+                )
+            with col2:
+                detection_threshold = st.slider(
+                    "Detection Threshold",
+                    min_value=0.8,
+                    max_value=0.99,
+                    value=0.95,
+                    step=0.01
+                )
+            
+            if st.button("Detect Critical Points"):
+                with st.spinner("Detecting critical points..."):
+                    detector = TopologicalCriticalPoints(
+                        window_size=detection_window,
+                        stride=detection_window//2
+                    )
+                    
+                    critical_points = detector.find_critical_points(
+                        time_series_data,
+                        threshold=detection_threshold
+                    )
+                    
+                    st.session_state.critical_points = critical_points
+                    
+                    fig = TimeSeriesVisualization.plot_critical_points(
+                        time_series_data,
+                        critical_points
+                    )
+                    st.pyplot(fig)
+
             
             # Process button
             if st.button("Process Data"):

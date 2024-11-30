@@ -262,4 +262,75 @@ class TimeSeriesVisualization:
         fig.tight_layout()    
 
         return fig
+
+
+    @staticmethod
+    def plot_critical_points(time_series: np.ndarray, 
+                           critical_points: List[int],
+                           title: str = "Critical Points Detection") -> plt.Figure:
+        """
+        Visualize critical points on the time series.
+        """
+        fig, ax = plt.subplots(figsize=(12, 6))
         
+        # Plot time series
+        ax.plot(time_series, alpha=0.7, label='Time Series')
+        
+        # Plot critical points
+        ax.scatter(critical_points, 
+                  time_series[critical_points],
+                  color='red',
+                  s=100,
+                  label='Critical Points')
+        
+        ax.set_title(title)
+        ax.set_xlabel('Time')
+        ax.set_ylabel('Value')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        return fig 
+    
+
+
+    @staticmethod
+    def plot_critical_point_topology(time_series: np.ndarray,
+                                   critical_point: int,
+                                   window_size: int,
+                                   diagrams_before: List[np.ndarray],
+                                   diagrams_after: List[np.ndarray],
+                                   title: str = "Topological Changes at Critical Point") -> plt.Figure:
+        """
+        Visualize topological changes around a critical point.
+        """
+        # Create subplots: time series window and persistence diagrams
+        fig = plt.figure(figsize=(15, 5))
+        gs = plt.GridSpec(1, 3, width_ratios=[2, 1, 1])
+        
+        # Plot time series window
+        ax_ts = fig.add_subplot(gs[0])
+        start = max(0, critical_point - window_size)
+        end = min(len(time_series), critical_point + window_size)
+        window = time_series[start:end]
+        
+        ax_ts.plot(range(start, end), window, 'b-', alpha=0.7)
+        ax_ts.axvline(x=critical_point, color='r', linestyle='--', label='Critical Point')
+        ax_ts.set_title('Time Series around Critical Point')
+        ax_ts.set_xlabel('Time')
+        ax_ts.set_ylabel('Value')
+        ax_ts.legend()
+        
+        # Plot persistence diagram before
+        ax_before = fig.add_subplot(gs[1])
+        plot_diagrams(diagrams_before, show=False, ax=ax_before)
+        ax_before.set_title('Persistence Diagram Before')
+        
+        # Plot persistence diagram after
+        ax_after = fig.add_subplot(gs[2])
+        plot_diagrams(diagrams_after, show=False, ax=ax_after)
+        ax_after.set_title('Persistence Diagram After')
+        
+        plt.suptitle(title)
+        plt.tight_layout()
+        return fig
