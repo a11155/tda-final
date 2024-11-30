@@ -23,6 +23,11 @@ def main():
         st.session_state.processed_data = None
     if 'persistence_data' not in st.session_state:
         st.session_state.persistence_data = None
+    
+    if 'critical_point_detector' not in st.session_state:
+        st.session_state.critical_point_detector = None
+    if 'critical_points' not in st.session_state:
+        st.session_state.critical_points = None
 
     # Get input data
     if st.button("Generate Data"):
@@ -95,44 +100,8 @@ def main():
                 key="projection_dim"
             )
 
-            st.subheader("Critical Point Detection")
             
-            col1, col2 = st.columns(2)
-            with col1:
-                detection_window = st.slider(
-                    "Detection Window Size",
-                    min_value=10,
-                    max_value=len(time_series_data)//4,
-                    value=min(50, len(time_series_data)//8)
-                )
-            with col2:
-                detection_threshold = st.slider(
-                    "Detection Threshold",
-                    min_value=0.8,
-                    max_value=0.99,
-                    value=0.95,
-                    step=0.01
-                )
-            
-            if st.button("Detect Critical Points"):
-                with st.spinner("Detecting critical points..."):
-                    detector = TopologicalCriticalPoints(
-                        window_size=detection_window,
-                        stride=detection_window//2
-                    )
-                    
-                    critical_points = detector.find_critical_points(
-                        time_series_data,
-                        threshold=detection_threshold
-                    )
-                    
-                    st.session_state.critical_points = critical_points
-                    
-                    fig = TimeSeriesVisualization.plot_critical_points(
-                        time_series_data,
-                        critical_points
-                    )
-                    st.pyplot(fig)
+
 
             
             # Process button
@@ -253,6 +222,90 @@ def main():
                             with col3:
                                 st.metric("Max Persistence", f"{stat.max_persistence:.3f}")
                 
+
+            st.subheader("Critical Point Detection")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                detection_window = st.slider(
+                    "Detection Window Size",
+                    min_value=10,
+                    max_value=len(time_series_data)//4,
+                    value=min(50, len(time_series_data)//8)
+                )
+            with col2:
+                detection_threshold = st.slider(
+                    "Detection Threshold",
+                    min_value=0.8,
+                    max_value=0.99,
+                    value=0.95,
+                    step=0.01
+                )
+            with col3:
+                metric = st.selectbox(
+                    "Distance Metric",
+                    ["wasserstein", "bottleneck"]
+                )
+            
+
+            if st.button("Detect Critical Points"):
+                with st.spinner("Detecting critical points..."):
+                    if st.session_state.critical_point_detector is None:
+                        st.session_state.critical_point_detector = TopologicalCriticalPoints(
+                        window_size=detection_window,
+                        stride=max(1, detection_window//4)
+                    )
+                        
+                    detector = st.session_state.critical_point_detector
+                    
+                    critical_points = detector.find_critical_points(
+                        time_series_data,
+                        threshold=detection_threshold,
+                        metric=metric
+                    )
+                    st.session_state.critical_points = critical_points
+                    
+            
+            
+            if st.session_state.critical_points is not None:
+                if len(st.session_state.critical_points) > 0:
+                        critical_points = st.session_state.critical_points
+                        detector = st.session_state.critical_point_detector
+                        # Plot overview
+                        fig = TimeSeriesVisualization.plot_critical_points(
+                            time_series_data,
+                            critical_points
+                        )
+                        st.pyplot(fig)
+                        st.success(f"Found {len(critical_points)} critical points")
+                        
+                        # Allow user to select a critical point to examine
+                        selected_cp = st.selectbox(
+                            "Select critical point to examine:",
+                            range(len(critical_points)),
+                            format_func=lambda x: f"Critical Point {x+1} (t={critical_points[x]})"
+                        )
+                        
+                        if selected_cp is not None:
+                            cp = critical_points[selected_cp]
+                            diagrams_before, diagrams_after = detector.get_critical_point_diagrams(
+                                time_series_data,
+                                cp,
+                                detection_window
+                            )
+                            
+                            fig = TimeSeriesVisualization.plot_critical_point_topology(
+                                time_series_data,
+                                cp,
+                                detection_window,
+                                diagrams_before,
+                                diagrams_after,
+                                f"Topological Changes at Critical Point {selected_cp+1}"
+                            )
+                            st.pyplot(fig)
+                else:
+                        st.info("No critical points detected with current parameters")
+
         except Exception as e:
             raise e
 
