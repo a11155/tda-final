@@ -325,7 +325,8 @@ def main():
                         selected_cp = st.selectbox(
                             "Select critical point to examine:",
                             range(len(critical_points)),
-                            format_func=lambda x: f"Critical Point {x+1} (t={critical_points[x]})"
+                            format_func=lambda x: f"Critical Point {x+1} (t={critical_points[x]})",
+                            index=None
                         )
                         
                         if selected_cp is not None:

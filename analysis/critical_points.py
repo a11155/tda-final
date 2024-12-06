@@ -170,16 +170,17 @@ class TopologicalCriticalPoints:
         """
         Get persistence diagrams before and after a critical point.
         """
-    
+        if critical_point < window_size or critical_point > len(time_series) - window_size:
+            raise ValueError("Critical point too close to time series boundaries")
             
-        # Might have issues with the boundary cases
+        # Get windows before and after critical point
         start_before = critical_point - window_size
         end_before = critical_point
         start_after = critical_point
         end_after = critical_point + window_size
         
-        window_before = time_series[max(0, start_before):end_before]
-        window_after = time_series[start_after:min(end_after, len(time_series) - window_size)]
+        window_before = time_series[start_before:end_before]
+        window_after = time_series[start_after:end_after]
         
         embedding_before = self._create_takens_embedding(window_before)
         embedding_after = self._create_takens_embedding(window_after)
