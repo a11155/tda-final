@@ -54,7 +54,7 @@ def handle_pasted_data() -> Tuple[Optional[np.ndarray], Optional[str]]:
     """Handle pasted data input."""
     data_format = st.sidebar.selectbox(
         "Data format",
-        ["Single Column", "CSV Format"]
+        ["Single Column"]
     )
     
     data = st.sidebar.text_area(
@@ -68,16 +68,6 @@ def handle_pasted_data() -> Tuple[Optional[np.ndarray], Optional[str]]:
             if data_format == "Single Column":
                 values = [float(x.strip()) for x in data.split('\n') if x.strip()]
                 return np.array(values), None
-            else:
-                df = pd.read_csv(pd.StringIO(data))
-                if len(df.columns) > 1:
-                    selected_column = st.sidebar.selectbox(
-                        "Select time series column",
-                        df.columns
-                    )
-                    return df[selected_column].values, None
-                return df.iloc[:, 0].values, None
-                
         except Exception as e:
             return None, f"Error parsing data: {str(e)}"
     
