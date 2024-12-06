@@ -51,7 +51,7 @@ def main():
     
     if time_series_data is not None:
         st.session_state.time_series_data = time_series_data
-        
+    st.divider()
     # Display time series data
     if st.session_state.time_series_data is not None:
         st.subheader("Time Series Data")
@@ -123,7 +123,7 @@ def main():
                     }
                     
                 st.success(f"Processing complete")
-            
+            st.divider()
             if st.session_state.processed_data is not None:
                 st.subheader("Analysis Results")
                 
@@ -234,7 +234,7 @@ def main():
                             with col3:
                                 st.metric("Max Persistence", f"{stat.max_persistence:.3f}")
                 
-
+            st.divider()
             st.subheader("Critical Point Detection")
             
             col1, col2, col3 = st.columns(3)

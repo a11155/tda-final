@@ -69,7 +69,6 @@ class TimeSeriesAnalysis:
                 dimension=dim
             )
         
-        print(finite_diagram)
         
         persistence = finite_diagram[:, 1] - finite_diagram[:, 0]
         
