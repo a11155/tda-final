@@ -4,6 +4,7 @@ from ui.visualization import TimeSeriesVisualization, plot_time_series
 from analysis.time_series import TimeSeriesAnalysis
 from analysis.critical_points import TopologicalCriticalPoints
 import numpy as np
+import streamlit.components.v1 as components
 
 
 
@@ -16,6 +17,10 @@ def main():
     
     st.title("Time Series Analysis with TDA")
     
+    with st.expander("📚 Tutorial & Explanation"):
+        components.iframe("https://docs.google.com/presentation/d/e/2PACX-1vTsGHcRt8J49QrVtKM8IDboOy8dX-AFLz3LUKgvi1NITECu7kGd9sLCLFwDadZlLY4SqpYXoYyKm-6g/embed?start=false&loop=false&delayms=3000", height=500)
+
+
     # Initialize session state for storing data
     if 'time_series_data' not in st.session_state:
         st.session_state.time_series_data = None
@@ -35,6 +40,7 @@ def main():
         st.session_state.processed_data = None
         st.session_state.persistence_data = None
         st.success("Data generated successfully!")
+
 
     if st.session_state.time_series_data is None:
         time_series_data, error = render_data_input_section()

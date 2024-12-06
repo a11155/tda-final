@@ -171,8 +171,8 @@ class TimeSeriesVisualization:
 
         axs[2].set_title("Persistence Image")
 
-        print(len(pimgs))
-        print(pimgs)
+        # print(len(pimgs))
+        # print(pimgs)
         pimgr.plot_image(pimgs[1], ax=axs[2])
 
         plt.tight_layout()

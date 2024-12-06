@@ -146,8 +146,8 @@ class TopologicalCriticalPoints:
         diagrams = []
         for window in windows:
             try:
-                print("WINDOW:")
-                print(window)
+                #print("WINDOW:")
+                #print(window)
                 embedding = self._create_takens_embedding(window)
                 diagram = ripser(embedding)['dgms']
                 diagrams.append(diagram)

@@ -236,30 +236,3 @@ class TimeSeriesAnalysis:
             
         return normalized_windows
 
-
-def test_time_series_analysis():
-    """Basic tests for TimeSeriesAnalysis class."""
-    # Create a simple sine wave
-    t = np.linspace(0, 10, 1000)
-    y = np.sin(2 * np.pi * t)
-    
-    # Initialize analyzer
-    analyzer = TimeSeriesAnalysis(y, sampling_rate=100)
-    
-    # Test sliding windows
-    windows = analyzer.create_sliding_windows(window_size=100)
-    assert len(windows) > 0
-    assert all(len(w.values) == 100 for w in windows)
-    
-    # Test normalization
-    for window in norm_windows:
-        assert abs(np.mean(window.values)) < 1e-6
-        assert abs(np.std(window.values) - 1.0) < 1e-6
-    
-    # Test point cloud conversion
-    assert point_cloud.shape == (len(windows), 100)
-    
-    print("All tests passed!")
-
-if __name__ == "__main__":
-    test_time_series_analysis()

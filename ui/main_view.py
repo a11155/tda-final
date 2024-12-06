@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from typing import Optional, Tuple
 from pathlib import Path
+from data.sample_datasets import SampleData
 
 def render_data_input_section() -> Tuple[Optional[np.ndarray], Optional[str]]:
     """
@@ -93,19 +94,19 @@ def handle_sample_data() -> Tuple[Optional[np.ndarray], Optional[str]]:
     
     try:
         if sample_type == "Sine Wave":
-            t = np.linspace(0, 10, n_points)
-            frequency = st.sidebar.slider("Frequency", 0.1, 2.0, 1.0)
-            return np.sin(2 * np.pi * frequency * t), None
+            return SampleData.get_sine_wave(n_points), None
             
         elif sample_type == "Random Walk":
-            return np.cumsum(np.random.randn(n_points)), None
+            return SampleData.get_random_walk(n_points), None
             
         else:  # Composite Signal
+            
             t = np.linspace(0, 10, n_points)
             f1 = st.sidebar.slider("Frequency 1", 0.1, 2.0, 0.5)
             f2 = st.sidebar.slider("Frequency 2", 0.1, 2.0, 1.0)
-            return (np.sin(2 * np.pi * f1 * t) + 
-                   0.5 * np.sin(2 * np.pi * f2 * t)), None
-                   
+            noise = st.sidebar.slider("Noise level", 0.0, 1.0, 0.0)
+
+            return SampleData.get_composite_signal(n_points, f1, f2, noise), None
+
     except Exception as e:
         return None, f"Error generating sample data: {str(e)}"
