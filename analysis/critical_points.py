@@ -7,10 +7,44 @@ from analysis.time_series import TimeSeriesAnalysis
 
 
 class TopologicalCriticalPoints:
-    def __init__(self, window_size: int, stride: int):
+    def __init__(self, window_size: int, stride: int, embedding_dim: int = 2, time_delay: int = 1):
+        """
+        Initialize the detector.
+        
+        Args:
+            window_size: Size of sliding window
+            stride: Step size between windows
+            embedding_dim: Dimension of the Takens embedding
+            time_delay: Time delay for the embedding
+        """
         self.window_size = window_size
         self.stride = stride
+        self.embedding_dim = embedding_dim
+        self.time_delay = time_delay
+
+    def _create_takens_embedding(self, window: np.ndarray) -> np.ndarray:
+        """
+        Create Takens embedding from time series window.
         
+        Args:
+            window: Time series window
+            
+        Returns:
+            Takens embedding of the window
+        """
+        N = len(window)
+        if N < self.embedding_dim * self.time_delay:
+            raise ValueError("Window size too small for selected embedding parameters")
+            
+        num_points = N - (self.embedding_dim - 1) * self.time_delay
+        embedding = np.zeros((num_points, self.embedding_dim))
+        
+        for i in range(num_points):
+            for j in range(self.embedding_dim):
+                embedding[i, j] = window[i + j * self.time_delay]
+                
+        return embedding
+
     def _compute_diagram_distances(self, 
                                  diagrams: List[List[np.ndarray]],
                                  metric: str = 'wasserstein') -> np.ndarray:
@@ -18,26 +52,41 @@ class TopologicalCriticalPoints:
         Compute distances between consecutive persistence diagrams.
         
         Args:
-            diagrams: List of persistence diagrams, where each diagram is a list of
-                     arrays for different homology dimensions
-            metric: Either 'wasserstein' or 'bottleneck'
+            diagrams: List of persistence diagrams
+            metric: Distance metric ('wasserstein' or 'bottleneck')
             
         Returns:
             Array of distances
         """
+        if not diagrams or len(diagrams) < 2:
+            return np.array([])
+            
         distances = []
         for i in range(len(diagrams) - 1):
-            # Sum distances across all dimensions
             total_dist = 0
-            for dim in range(len(diagrams[0])):  # For each homology dimension
-                if metric == 'wasserstein':
-                    total_dist += wasserstein(diagrams[i][dim], diagrams[i + 1][dim])
+            # Sum distances for each homology dimension
+            for dim in range(len(diagrams[0])):
+                # Handle empty diagrams
+                diag1 = diagrams[i][dim]
+                diag2 = diagrams[i + 1][dim]
+                
+                if len(diag1) == 0 and len(diag2) == 0:
+                    continue
+                elif len(diag1) == 0 or len(diag2) == 0:
+                    # One diagram is empty, use maximum possible distance
+                    total_dist += 1.0
                 else:
-                    total_dist += bottleneck(diagrams[i][dim], diagrams[i + 1][dim])
+                    if metric == 'wasserstein':
+                        total_dist += wasserstein(diag1, diag2)
+                    else:
+                        total_dist += bottleneck(diag1, diag2)
+                        
             distances.append(total_dist)
+            
         return np.array(distances)
-    
-    def find_critical_points(self, time_series: np.ndarray, 
+
+    def find_critical_points(self, 
+                           time_series: np.ndarray, 
                            threshold: float = 0.95,
                            metric: str = 'wasserstein') -> List[int]:
         """
@@ -46,12 +95,15 @@ class TopologicalCriticalPoints:
         Args:
             time_series: Input time series
             threshold: Percentile threshold for peak detection
-            metric: Distance metric to use ('wasserstein' or 'bottleneck')
+            metric: Distance metric to use
             
         Returns:
             List of indices where critical points occur
         """
-        # Get sliding windows
+        if len(time_series) < self.window_size:
+            return []
+            
+        # Create sliding windows
         windows = []
         for i in range(0, len(time_series) - self.window_size + 1, self.stride):
             windows.append(time_series[i:i + self.window_size])
@@ -59,16 +111,23 @@ class TopologicalCriticalPoints:
         # Compute persistence diagrams for each window
         diagrams = []
         for window in windows:
-            # Create Takens embedding
-            embedding = np.array([
-                window[i:i + 2] for i in range(len(window) - 1)
-            ])
-            diagram = ripser(embedding)['dgms']
-            diagrams.append(diagram)
+            try:
+                embedding = self._create_takens_embedding(window)
+                diagram = ripser(embedding)['dgms']
+                diagrams.append(diagram)
+            except Exception as e:
+                print(f"Warning: Failed to compute diagram: {e}")
+                return []
         
+        if not diagrams:
+            return []
+            
         # Compute distances between consecutive diagrams
         distances = self._compute_diagram_distances(diagrams, metric)
         
+        if len(distances) == 0:
+            return []
+            
         # Find peaks in distances
         height = np.percentile(distances, threshold * 100)
         peaks, _ = find_peaks(distances, height=height)
@@ -76,33 +135,31 @@ class TopologicalCriticalPoints:
         # Convert window indices to time series indices
         return [p * self.stride + self.window_size // 2 for p in peaks]
 
-
-    def get_critical_point_diagrams(self, time_series: np.ndarray, 
+    def get_critical_point_diagrams(self, 
+                                  time_series: np.ndarray, 
                                   critical_point: int,
                                   window_size: int) -> Tuple[List[np.ndarray], List[np.ndarray]]:
         """
         Get persistence diagrams before and after a critical point.
         """
+        if critical_point < window_size or critical_point > len(time_series) - window_size:
+            raise ValueError("Critical point too close to time series boundaries")
+            
         # Get windows before and after critical point
-        start_before = max(0, critical_point - window_size)
+        start_before = critical_point - window_size
         end_before = critical_point
         start_after = critical_point
-        end_after = min(len(time_series), critical_point + window_size)
+        end_after = critical_point + window_size
         
         window_before = time_series[start_before:end_before]
         window_after = time_series[start_after:end_after]
         
-        # Create embeddings
-        embedding_before = np.array([
-            window_before[i:i + 2] for i in range(len(window_before) - 1)
-        ])
-        embedding_after = np.array([
-            window_after[i:i + 2] for i in range(len(window_after) - 1)
-        ])
+        # Create embeddings using proper Takens embedding
+        embedding_before = self._create_takens_embedding(window_before)
+        embedding_after = self._create_takens_embedding(window_after)
         
         # Compute persistence diagrams
         diagrams_before = ripser(embedding_before)['dgms']
         diagrams_after = ripser(embedding_after)['dgms']
         
         return diagrams_before, diagrams_after
-
