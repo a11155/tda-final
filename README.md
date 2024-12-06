@@ -1,6 +1,9 @@
 # TDA Final Project
 
-This project uses Topological Data Analysis (TDA) techniques implemented in Python, with a Streamlit web interface for visualization and interaction.
+
+## Requirements
+
+- Python 3.11+
 
 ## Installation
 
@@ -36,7 +39,5 @@ This will start the local server and open the application in your default web br
 - Interactive TDA visualization for time-series data
 - Streamlit-based user interface
 
-## Requirements
 
-- Python 3.11+
 
