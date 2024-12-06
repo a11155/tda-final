@@ -56,35 +56,29 @@ def main():
         try:
             # Basic visualization of raw data
             st.subheader("Analysis Parameters")
+            embedding_dim = st.slider(
+                    "Embedding Dimension",
+                    min_value=2,
+                    max_value=100,
+                    value=15,
+                    key="embedding_dim"
+            )
             
             col1, col2 = st.columns(2)
             
-            with col1:
-                window_size = st.slider(
-                    "Window Size",
-                    min_value=2,
-                    max_value=len(time_series_data)//2,
-                    value=min(50, len(time_series_data)//4),
-                    key="window_size"
-                )
+
                 
-                embedding_dim = st.slider(
-                    "Embedding Dimension",
-                    min_value=2,
-                    max_value=10,
-                    value=3,
-                    key="embedding_dim"
-                )
+
             
-            with col2:
+            with col1:
                 stride = st.slider(
                     "Stride",
                     min_value=1,
-                    max_value=window_size,
-                    value=window_size//2,
+                    max_value=embedding_dim,
+                    value=1,
                     key="stride"
                 )
-                
+            with col2:
                 time_delay = st.slider(
                     "Time Delay",
                     min_value=1,
@@ -111,15 +105,13 @@ def main():
                     analyzer = TimeSeriesAnalysis(time_series_data)
                     
                     # Compute windows
-                    windows = analyzer.create_sliding_windows(window_size, stride)
                     
                     # Create and project embedding
-                    embedding = analyzer.create_takens_embedding(embedding_dim, time_delay)
+                    embedding = analyzer.create_takens_embedding(embedding_dim, time_delay, stride=stride)
                     projected_embedding = analyzer.project_embedding(embedding, projection_dim)
                     
                     # Store in session state
                     st.session_state.processed_data = {
-                        'windows': windows,
                         'embedding': embedding,
                         'projected_embedding': projected_embedding,
                         'stats': {
@@ -186,7 +178,7 @@ def main():
 
                     vis_type = st.selectbox(
                         "Select Visualization",
-                        ["Persistence Diagram", "Persistence Landscape"]
+                        ["Persistence Diagram", "Barcode", "Persistence Landscape", "Betti Curves", "Persistence Images"]
                     )
                     
                     if vis_type == "Persistence Diagram":
@@ -205,6 +197,31 @@ def main():
                         fig = TimeSeriesVisualization.plot_persistence_landscape(
                             st.session_state.persistence_data['diagrams'],
                             n_layers=n_layers
+                        )
+                        st.pyplot(fig)
+
+                    elif vis_type == "Betti Curves":
+                        fig = TimeSeriesVisualization.plot_betti_curves(
+                            st.session_state.persistence_data['diagrams']
+                        )
+                        st.pyplot(fig)
+
+                    elif vis_type == "Persistence Images":
+                        pixel_size = st.slider(
+                            "Pixel Size",
+                            min_value=0.001,
+                            max_value=1.0,
+                            value=0.1
+                        )
+                        fig = TimeSeriesVisualization.plot_persistence_images(
+                            st.session_state.persistence_data['diagrams'],
+                            pixel_size=pixel_size
+                        )
+                        st.pyplot(fig)
+                    
+                    elif vis_type == "Barcode":
+                        fig = TimeSeriesVisualization.plot_persistence_barcode(
+                            st.session_state.persistence_data['diagrams']
                         )
                         st.pyplot(fig)
 
@@ -246,6 +263,35 @@ def main():
                     "Distance Metric",
                     ["wasserstein", "bottleneck"]
                 )
+
+
+            col4, col5, col6 = st.columns(3)
+
+            with col4:
+                critical_points_embedding_dim = st.slider(
+                    "Embedding Dimension",
+                    min_value=2,
+                    max_value=100,
+                    value=15,
+                    key="critical_embedding_dim"
+            )
+            
+            with col5:
+                critical_points_stride = st.slider(
+                    "Stride",
+                    min_value=1,
+                    max_value=embedding_dim,
+                    value=1,
+                    key="critical_stride"
+                )
+            with col6:
+                critical_points_time_delay = st.slider(
+                    "Time Delay",
+                    min_value=1,
+                    max_value=20,
+                    value=1,
+                    key="critical_time_delay"
+                )
             
 
             if st.button("Detect Critical Points"):
@@ -253,7 +299,9 @@ def main():
                     if st.session_state.critical_point_detector is None:
                         st.session_state.critical_point_detector = TopologicalCriticalPoints(
                         window_size=detection_window,
-                        stride=max(1, detection_window//4)
+                        stride=critical_points_stride,
+                        embedding_dim=critical_points_embedding_dim,
+                        time_delay=critical_points_time_delay
                     )
                         
                     detector = st.session_state.critical_point_detector

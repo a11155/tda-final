@@ -51,7 +51,37 @@ class TimeSeriesAnalysis:
         self.time_series = time_series
         self.sampling_rate = sampling_rate
         self.length = len(time_series)
+
+    def compute_stats(self, diagram: np.ndarray, dim: int) -> PersistenceStats:
+        """Compute statistics for a persistence diagram after removing infinite values."""
+        # Remove infinite values
+        finite_mask = np.isfinite(diagram).all(axis=1)
+        finite_diagram = diagram[finite_mask]
         
+        if len(finite_diagram) == 0:
+            return PersistenceStats(
+                total_persistence=0.0,
+                max_persistence=0.0,
+                avg_persistence=0.0,
+                num_features=0,
+                birth_range=(0.0, 0.0),
+                death_range=(0.0, 0.0),
+                dimension=dim
+            )
+        
+        print(finite_diagram)
+        
+        persistence = finite_diagram[:, 1] - finite_diagram[:, 0]
+        
+        return PersistenceStats(
+            total_persistence=float(np.sum(persistence)),
+            max_persistence=float(np.max(persistence)) if len(persistence) > 0 else 0.0,
+            avg_persistence=float(np.mean(persistence)) if len(persistence) > 0 else 0.0,
+            num_features=len(persistence),
+            birth_range=(float(np.min(finite_diagram[:, 0])), float(np.max(finite_diagram[:, 0]))),
+            death_range=(float(np.min(finite_diagram[:, 1])), float(np.max(finite_diagram[:, 1]))),
+            dimension=dim
+        )
 
     def compute_persistence(self, embedding, max_dim: int = 1) -> Dict:
         """
@@ -71,16 +101,7 @@ class TimeSeriesAnalysis:
         stats = []
         for dim, diagram in enumerate(diagrams):
             if len(diagram) > 0:
-                persistence = diagram[:, 1] - diagram[:, 0]
-                stats.append(PersistenceStats(
-                    total_persistence=float(np.sum(persistence)),
-                    max_persistence=float(np.max(persistence)),
-                    avg_persistence=float(np.mean(persistence)),
-                    num_features=len(persistence),
-                    birth_range=(float(np.min(diagram[:, 0])), float(np.max(diagram[:, 0]))),
-                    death_range=(float(np.min(diagram[:, 1])), float(np.max(diagram[:, 1]))),
-                    dimension=dim
-                ))
+                stats.append(self.compute_stats(diagram, dim))
             else:
                 stats.append(PersistenceStats(
                     total_persistence=0.0,
@@ -138,7 +159,7 @@ class TimeSeriesAnalysis:
 
     def create_takens_embedding(self, 
                               embedding_dimension: int, 
-                              time_delay: int) -> np.ndarray:
+                              time_delay: int, stride = 1) -> np.ndarray:
         """
         Create Takens embedding of the time series.
         
@@ -155,23 +176,21 @@ class TimeSeriesAnalysis:
         if time_delay < 1:
             raise ValueError("Time delay must be at least 1")
             
-        # Calculate number of points in the embedding
-        n_points = len(self.time_series) - (embedding_dimension - 1) * time_delay
+        # Calculate number of points considering stride
+        n_points = (len(self.time_series) - (embedding_dimension - 1) * time_delay - 1) // stride + 1
         
         if n_points < 1:
-            raise ValueError("Time series too short for these embedding parameters")
+            raise ValueError("Time series too short for these parameters")
         
-        # Create the embedding
         embedding = np.zeros((n_points, embedding_dimension))
         
         for i in range(embedding_dimension):
             start_idx = i * time_delay
-            end_idx = start_idx + n_points
-            embedding[:, i] = self.time_series[start_idx:end_idx]
+            indices = np.arange(start_idx, start_idx + n_points * stride, stride)
+            embedding[:, i] = self.time_series[indices]
         
         self.embedding = embedding
         return embedding
-    
     def project_embedding(self, 
                          embedding: np.ndarray, 
                          n_components: int = 2) -> np.ndarray:
@@ -216,29 +235,7 @@ class TimeSeriesAnalysis:
             ))
             
         return normalized_windows
-    
-    def windows_to_point_cloud(self, windows: List[TimeSeriesWindow]) -> np.ndarray:
-        """
-        Convert windows to a point cloud for TDA.
-        
-        Args:
-            windows: List of TimeSeriesWindow objects
-            
-        Returns:
-            2D numpy array where each row is a point (window)
-        """
-        return np.vstack([window.values for window in windows])
-    
-    def get_time_axis(self) -> np.ndarray:
-        """
-        Get the time axis for the time series.
-        
-        Returns:
-            1D numpy array of time points
-        """
-        if self.sampling_rate:
-            return np.arange(self.length) / self.sampling_rate
-        return np.arange(self.length)
+
 
 def test_time_series_analysis():
     """Basic tests for TimeSeriesAnalysis class."""
@@ -255,13 +252,11 @@ def test_time_series_analysis():
     assert all(len(w.values) == 100 for w in windows)
     
     # Test normalization
-    norm_windows = analyzer.normalize_windows(windows)
     for window in norm_windows:
         assert abs(np.mean(window.values)) < 1e-6
         assert abs(np.std(window.values) - 1.0) < 1e-6
     
     # Test point cloud conversion
-    point_cloud = analyzer.windows_to_point_cloud(windows)
     assert point_cloud.shape == (len(windows), 100)
     
     print("All tests passed!")

@@ -18,7 +18,7 @@ from persim import plot_diagrams
 from analysis.time_series import PersistenceStats
 from persim import plot_diagrams, persistent_entropy
 from persim.landscapes import PersistenceLandscaper
-from persim.images import PersistenceImager
+from persim import PersistenceImager
 from typing import Tuple
 
 def plot_time_series(time_series: np.ndarray, title: str = "Time Series") -> plt.Figure:
@@ -133,7 +133,50 @@ class TimeSeriesVisualization:
             plot_diagrams(diagrams, show=False)
             plt.title(title, size=16)
             plt.tight_layout()
-            return fig  
+            return fig 
+
+
+    @staticmethod
+    def plot_betti_curves(diagrams: List[np.ndarray]) -> plt.Figure:
+        """Plot Betti curves using gtda"""
+        from gtda.plotting import plot_betti_curves
+        
+        fig = plt.figure(figsize=(12, 6))
+        plot_betti_curves(diagrams)
+        plt.title("Betti Curves")
+        plt.tight_layout()
+        return fig
+
+    @staticmethod
+    def plot_persistence_images(diagrams: List[np.ndarray], pixel_size: float= 0.1) -> plt.Figure:
+        """Plot persistence images using gtda"""
+        pimgr = PersistenceImager(pixel_size=pixel_size)
+        
+        finite_diagrams = []
+        for diagram in diagrams:
+            finite_mask = np.isfinite(diagram).all(axis=1)
+            finite_diagrams.append(diagram[finite_mask])
+        diagrams = finite_diagrams
+        pimgr.fit(diagrams, skew=True)
+        pimgs = pimgr.transform(diagrams, skew=True)
+        fig = plt.figure(figsize=(12, 6))
+        
+        fig, axs = plt.subplots(1, 3, figsize=(10,5))
+
+        axs[0].set_title("Original Diagram")
+        pimgr.plot_diagram(diagrams[1], skew=False, ax=axs[0])
+
+        axs[1].set_title("Birth-Persistence\nCoordinates")
+        pimgr.plot_diagram(diagrams[1], skew=True, ax=axs[1])
+
+        axs[2].set_title("Persistence Image")
+
+        print(len(pimgs))
+        print(pimgs)
+        pimgr.plot_image(pimgs[1], ax=axs[2])
+
+        plt.tight_layout()
+        return fig
    
 
     @staticmethod
@@ -249,6 +292,66 @@ class TimeSeriesVisualization:
         plt.tight_layout()
         return fig
     
+    @staticmethod
+    def plot_betti_curves(diagrams: List[np.ndarray],
+                        title: str = "Betti Curves") -> plt.Figure:
+        """
+        Create Betti curves visualization.
+        
+        Args:
+            diagrams: List of persistence diagrams from ripser
+            title: Plot title
+            
+        Returns:
+            Matplotlib figure
+        """
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        # Clean diagrams and get valid ranges
+        def clean_diagram(diag):
+            if len(diag) == 0:
+                return diag
+            valid_mask = np.all(np.isfinite(diag), axis=1)
+            return diag[valid_mask]
+        
+        cleaned_diagrams = [clean_diagram(diag) for diag in diagrams]
+        
+        # Get global min/max for time range
+        births_deaths = []
+        for diag in cleaned_diagrams:
+            if len(diag) > 0:
+                births_deaths.extend(diag.flatten())
+        
+        if births_deaths:
+            t_min, t_max = np.min(births_deaths), np.max(births_deaths)
+            t = np.linspace(t_min, t_max, 100)
+            
+            colors = ['#1f77b4', '#ff7f0e', '#2ca02c']  # Blue, Orange, Green
+            
+            for dim, diagram in enumerate(cleaned_diagrams):
+                if len(diagram) > 0:
+                    betti = np.zeros_like(t)
+                    for birth, death in diagram:
+                        if np.isfinite(birth) and np.isfinite(death):
+                            betti += ((t >= birth) & (t < death)).astype(int)
+                            
+                    ax.plot(t, betti, color=colors[dim], 
+                            label=f'$\\beta_{dim}$', linewidth=2)
+            
+            ax.set_title(title, pad=20, size=16)
+            ax.set_xlabel('Time', size=12)
+            ax.set_ylabel('Betti Number', size=12)
+            ax.grid(True, alpha=0.3)
+            ax.legend()
+        else:
+            ax.text(0.5, 0.5, 'No valid persistence intervals found',
+                    horizontalalignment='center',
+                    verticalalignment='center',
+                    transform=ax.transAxes)
+        
+        plt.tight_layout()
+        return fig
+
 
     @staticmethod
     def plot_persistence_landscape(diagrams: List[np.ndarray],

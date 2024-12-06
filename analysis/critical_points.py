@@ -45,6 +45,40 @@ class TopologicalCriticalPoints:
                 
         return embedding
 
+
+    def _create_takens_embedding(self, 
+                              window: np.ndarray) -> np.ndarray:
+        """
+        Create Takens embedding of the time series.
+        
+        Args:
+            embedding_dimension: Number of embedding dimensions
+            time_delay: Time delay (tau) for the embedding
+            
+        Returns:
+            Array of shape (n_points, embedding_dimension) containing the embedding
+        """
+        if self.embedding_dim < 2:
+            raise ValueError("Embedding dimension must be at least 2")
+        
+        if self.time_delay < 1:
+            raise ValueError("Time delay must be at least 1")
+            
+        # Calculate number of points considering stride
+        n_points = (len(window) - (self.embedding_dim - 1) * self.time_delay - 1) // self.stride + 1
+        
+        if n_points < 1:
+            raise ValueError("Time series too short for these parameters")
+        
+        embedding = np.zeros((n_points, self.embedding_dim))
+        
+        for i in range(self.embedding_dim):
+            start_idx = i * self.time_delay
+            indices = np.arange(start_idx, start_idx + n_points * self.stride, self.stride)
+            embedding[:, i] = window[indices]
+        
+        return embedding
+
     def _compute_diagram_distances(self, 
                                  diagrams: List[List[np.ndarray]],
                                  metric: str = 'wasserstein') -> np.ndarray:
@@ -112,6 +146,8 @@ class TopologicalCriticalPoints:
         diagrams = []
         for window in windows:
             try:
+                print("WINDOW:")
+                print(window)
                 embedding = self._create_takens_embedding(window)
                 diagram = ripser(embedding)['dgms']
                 diagrams.append(diagram)
