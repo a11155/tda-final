@@ -64,7 +64,6 @@ class TopologicalCriticalPoints:
         if self.time_delay < 1:
             raise ValueError("Time delay must be at least 1")
             
-        # Calculate number of points considering stride
         n_points = (len(window) - (self.embedding_dim - 1) * self.time_delay - 1) // self.stride + 1
         
         if n_points < 1:
@@ -98,16 +97,13 @@ class TopologicalCriticalPoints:
         distances = []
         for i in range(len(diagrams) - 1):
             total_dist = 0
-            # Sum distances for each homology dimension
             for dim in range(len(diagrams[0])):
-                # Handle empty diagrams
                 diag1 = diagrams[i][dim]
                 diag2 = diagrams[i + 1][dim]
                 
                 if len(diag1) == 0 and len(diag2) == 0:
                     continue
                 elif len(diag1) == 0 or len(diag2) == 0:
-                    # One diagram is empty, use maximum possible distance
                     total_dist += 1.0
                 else:
                     if metric == 'wasserstein':
@@ -137,12 +133,10 @@ class TopologicalCriticalPoints:
         if len(time_series) < self.window_size:
             return []
             
-        # Create sliding windows
         windows = []
         for i in range(0, len(time_series) - self.window_size + 1, self.stride):
             windows.append(time_series[i:i + self.window_size])
         
-        # Compute persistence diagrams for each window
         diagrams = []
         for window in windows:
             try:
@@ -158,13 +152,11 @@ class TopologicalCriticalPoints:
         if not diagrams:
             return []
             
-        # Compute distances between consecutive diagrams
         distances = self._compute_diagram_distances(diagrams, metric)
         
         if len(distances) == 0:
             return []
             
-        # Find peaks in distances
         height = np.percentile(distances, threshold * 100)
         peaks, _ = find_peaks(distances, height=height)
         
@@ -178,19 +170,17 @@ class TopologicalCriticalPoints:
         """
         Get persistence diagrams before and after a critical point.
         """
-        if critical_point < window_size or critical_point > len(time_series) - window_size:
-            raise ValueError("Critical point too close to time series boundaries")
+    
             
-        # Get windows before and after critical point
+        # Might have issues with the boundary cases
         start_before = critical_point - window_size
         end_before = critical_point
         start_after = critical_point
         end_after = critical_point + window_size
         
-        window_before = time_series[start_before:end_before]
-        window_after = time_series[start_after:end_after]
+        window_before = time_series[max(0, start_before):end_before]
+        window_after = time_series[start_after:min(end_after, len(time_series) - window_size)]
         
-        # Create embeddings using proper Takens embedding
         embedding_before = self._create_takens_embedding(window_before)
         embedding_after = self._create_takens_embedding(window_after)
         

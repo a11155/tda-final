@@ -1,5 +1,5 @@
 import streamlit as st
-from ui.main_view import render_data_input_section
+from ui.sidebar import render_data_input_section
 from ui.visualization import TimeSeriesVisualization, plot_time_series
 from analysis.time_series import TimeSeriesAnalysis
 from analysis.critical_points import TopologicalCriticalPoints
@@ -17,11 +17,10 @@ def main():
     
     st.title("Time Series Analysis with TDA")
     
-    with st.expander("Tutorial"):
+    with st.expander("Explanation"):
         components.iframe("https://docs.google.com/presentation/d/e/2PACX-1vTsGHcRt8J49QrVtKM8IDboOy8dX-AFLz3LUKgvi1NITECu7kGd9sLCLFwDadZlLY4SqpYXoYyKm-6g/embed?start=false&loop=false&delayms=3000", height=500)
 
 
-    # Initialize session state for storing data
     if 'time_series_data' not in st.session_state:
         st.session_state.time_series_data = None
     if 'processed_data' not in st.session_state:
@@ -34,7 +33,6 @@ def main():
     if 'critical_points' not in st.session_state:
         st.session_state.critical_points = None
 
-    # Get input data
     if st.button("Generate Data"):
         st.session_state.time_series_data = None
         st.session_state.processed_data = None
@@ -107,16 +105,12 @@ def main():
             # Process button
             if st.button("Process Data"):
                 with st.spinner("Processing..."):
-                    # Create analyzer
                     analyzer = TimeSeriesAnalysis(time_series_data)
                     
-                    # Compute windows
                     
-                    # Create and project embedding
                     embedding = analyzer.create_takens_embedding(embedding_dim, time_delay, stride=stride)
                     projected_embedding = analyzer.project_embedding(embedding, projection_dim)
                     
-                    # Store in session state
                     st.session_state.processed_data = {
                         'embedding': embedding,
                         'projected_embedding': projected_embedding,
@@ -130,11 +124,9 @@ def main():
                     
                 st.success(f"Processing complete")
             
-            # Display results if data has been processed
             if st.session_state.processed_data is not None:
                 st.subheader("Analysis Results")
                 
-                # Display basic statistics
                 stats = st.session_state.processed_data['stats']
                 col1, col2, col3, col4 = st.columns(4)
                 
@@ -155,7 +147,6 @@ def main():
                 )
                 st.plotly_chart(fig, use_container_width=True)
 
-                # Persistence Analysis Section
                 st.subheader("TDA Analysis")
                 
                 max_homology_dim = st.slider(
@@ -178,7 +169,6 @@ def main():
                         st.session_state.persistence_data = persistence_results
                         st.success("Persistence computation complete")
                 
-                # Display persistence results if available
                 if st.session_state.persistence_data is not None:
                     
 
@@ -233,7 +223,6 @@ def main():
 
 
                     
-                    # Statistics in a separate section
                     with st.expander("Persistence Statistics"):
                         for stat in st.session_state.persistence_data['stats']:
                             st.write(f"### Dimension {stat.dimension}")
@@ -325,7 +314,7 @@ def main():
                 if len(st.session_state.critical_points) > 0:
                         critical_points = st.session_state.critical_points
                         detector = st.session_state.critical_point_detector
-                        # Plot overview
+
                         fig = TimeSeriesVisualization.plot_critical_points(
                             time_series_data,
                             critical_points
@@ -333,7 +322,6 @@ def main():
                         st.pyplot(fig)
                         st.success(f"Found {len(critical_points)} critical points")
                         
-                        # Allow user to select a critical point to examine
                         selected_cp = st.selectbox(
                             "Select critical point to examine:",
                             range(len(critical_points)),
