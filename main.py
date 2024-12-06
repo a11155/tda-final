@@ -17,7 +17,7 @@ def main():
     
     st.title("Time Series Analysis with TDA")
     
-    with st.expander("📚 Tutorial & Explanation"):
+    with st.expander("Tutorial"):
         components.iframe("https://docs.google.com/presentation/d/e/2PACX-1vTsGHcRt8J49QrVtKM8IDboOy8dX-AFLz3LUKgvi1NITECu7kGd9sLCLFwDadZlLY4SqpYXoYyKm-6g/embed?start=false&loop=false&delayms=3000", height=500)
 
 
